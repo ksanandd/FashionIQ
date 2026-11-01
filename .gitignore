@@ -1,14 +1,6 @@
-# Node dependencies
-node_modules/
-
 # Next.js
 .next/
 out/
-
-# Environment variables
-.env
-.env.*
-!.env.example
 
 # Python
 __pycache__/
@@ -30,3 +22,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+# Local environment and dependencies
+backend/.env
+backend/node_modules/
+frontend/node_modules/

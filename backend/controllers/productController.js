@@ -117,15 +117,77 @@ const getAllProducts = async (req, res) => {
             params.push(maxPrice);
         }
 
-        sql += " ORDER BY product_id ASC";
 
-        const [products] = await db.query(sql, params);
+    // Sorting options
+    const sortOptions = {
+        price_asc: "price ASC",
+        price_desc: "price DESC",
+        name_asc: "product_name ASC",
+        name_desc: "product_name DESC"
+    };
 
-        res.status(200).json({
-            success: true,
-            count: products.length,
-            products
+    const sort = req.query.sort || "default";
+
+    const orderBy = sortOptions[sort] || (
+        sort === "default" ? "product_id ASC" : null
+    );
+
+    if (!orderBy) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid sorting option"
         });
+    }
+
+    // Pagination validation
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 10);
+
+    if (
+        !Number.isInteger(page) ||
+        !Number.isInteger(limit) ||
+        page < 1 ||
+        limit < 1 ||
+        limit > 100
+    ) {
+        return res.status(400).json({
+            success: false,
+            message: "Invalid page or limit. Limit must be between 1 and 100."
+        });
+    }
+
+    const offset = (page - 1) * limit;
+
+    // Get total matching products before pagination
+    const [countResult] = await db.query(
+        `SELECT COUNT(*) AS total FROM PRODUCT WHERE 1=1 ${
+            sql.substring(sql.indexOf(" WHERE 1=1") + 10)
+        }`,
+        params
+    );
+
+    const totalProducts = countResult[0].total;
+    const totalPages = Math.ceil(totalProducts / limit);
+
+    // Fetch paginated products
+    sql += ` ORDER BY ${orderBy} LIMIT ? OFFSET ?`;
+
+    const [products] = await db.query(
+        sql,
+        [...params, limit, offset]
+    );
+
+    res.status(200).json({
+        success: true,
+        count: products.length,
+        pagination: {
+            currentPage: page,
+            limit,
+            totalProducts,
+            totalPages
+        },
+        products
+    });
 
     } catch (error) {
         console.error("Error fetching products:", error.message);

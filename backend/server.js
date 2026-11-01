@@ -7,6 +7,11 @@ const db = require("./config/db");
 const productRoutes = require("./routes/productRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const brandRoutes = require("./routes/brandRoutes");
+const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+const wardrobeRoutes = require("./routes/wardrobeRoutes");
+const interactionRoutes = require("./routes/interactionRoutes");
+const recommendationRoutes = require("./routes/recommendationRoutes");
 
 const app = express();
 
@@ -15,6 +20,11 @@ app.use(express.json());
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/brands", brandRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/users", userRoutes);
+app.use("/api/wardrobes", wardrobeRoutes);
+app.use("/api/interactions", interactionRoutes);
+app.use("/api/recommendations", recommendationRoutes);
 
 // Basic health check
 app.get("/", (req, res) => {
