@@ -27,7 +27,7 @@ export default function CartPage() {
   }
 
   const total = cart.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
+    (sum, item) => sum + item.price * item.quantity,
     0
   );
 
@@ -77,7 +77,7 @@ export default function CartPage() {
                       {item.color} · Size {item.size}
                     </p>
                     <p className="mt-2 font-semibold">
-                      ₹{item.product.price.toLocaleString("en-IN")}
+                      ₹{item.price.toLocaleString("en-IN")}
                     </p>
 
                     <div className="mt-auto flex items-center gap-3 pt-3">
