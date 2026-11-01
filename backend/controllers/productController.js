@@ -239,7 +239,64 @@ const getProductById = async (req, res) => {
     }
 };
 
+// Get all variants of a specific product
+const getProductVariants = async (req, res) => {
+    try {
+        const productId = Number(req.params.id);
+
+        if (!Number.isInteger(productId) || productId <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid product ID"
+            });
+        }
+
+        // Check whether the product exists
+        const [products] = await db.query(
+            "SELECT product_id FROM PRODUCT WHERE product_id = ?",
+            [productId]
+        );
+
+        if (products.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: "Product not found"
+            });
+        }
+
+        // Retrieve available variants
+        const [variants] = await db.query(
+            `SELECT
+                variant_id,
+                product_id,
+                color,
+                size,
+                stock_quantity,
+                price
+            FROM PRODUCT_VARIANT
+            WHERE product_id = ?
+            ORDER BY variant_id ASC`,
+            [productId]
+        );
+
+        res.status(200).json({
+            success: true,
+            count: variants.length,
+            variants
+        });
+
+    } catch (error) {
+        console.error("Error fetching product variants:", error.message);
+
+        res.status(500).json({
+            success: false,
+            message: "Failed to retrieve product variants"
+        });
+    }
+};
+
 module.exports = {
     getAllProducts,
-    getProductById
+    getProductById,
+    getProductVariants
 };
