@@ -197,7 +197,7 @@ DROP TABLE IF EXISTS `product_engagement_view`;
 /*!50001 DROP VIEW IF EXISTS `product_engagement_view`*/;
 SET @saved_cs_client     = @@character_set_client;
 /*!50503 SET character_set_client = utf8mb4 */;
-/*!50001 CREATE VIEW `product_engagement_view` AS SELECT 
+/*!50001 CREATE VIEW `product_engagement_view` AS SELECT
  1 AS `product_id`,
  1 AS `product_name`,
  1 AS `category_name`,
