@@ -1,4 +1,3 @@
-
 const express = require("express");
 const router = express.Router();
 
@@ -7,24 +6,18 @@ const {
     getUserWardrobes,
     addWardrobeItem,
     getWardrobeItems,
-    removeWardrobeItem
+    removeWardrobeItem,
+    addOrderItemsToWardrobe
 } = require("../controllers/wardrobeController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
-// Create a wardrobe
+// All wardrobe routes require user authentication
 router.post("/", authMiddleware, createWardrobe);
-
-// Get all user's wardrobes
 router.get("/", authMiddleware, getUserWardrobes);
-
-// Add an item to a wardrobe
 router.post("/items", authMiddleware, addWardrobeItem);
-
-// Get items in a specific wardrobe
 router.get("/:wardrobe_id/items", authMiddleware, getWardrobeItems);
-
-// Remove an item from a wardrobe
 router.delete("/items/:wardrobe_item_id", authMiddleware, removeWardrobeItem);
+router.post("/items/from-order/:order_id", authMiddleware, addOrderItemsToWardrobe);
 
 module.exports = router;

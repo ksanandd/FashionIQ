@@ -1,5 +1,5 @@
-
 import type { Product } from "@/lib/api";
+import { trackInteraction } from "@/lib/interactions";
 
 export type CartItem = {
   product: Product;
@@ -22,7 +22,7 @@ export function getCart(): CartItem[] {
     return stored.map((item: any) => ({
       ...item,
       variantId: item.variantId ?? 0,
-      price: Number(item.price ?? item.product.price),
+      price: Number(item.price ?? item.product?.price ?? 0),
     }));
   } catch {
     return [];
@@ -63,4 +63,7 @@ export function addToCart(
   }
 
   saveCart(cart);
+
+  // Trigger telemetry interaction tracking
+  trackInteraction(product.id, "ADD_TO_CART", variantId);
 }

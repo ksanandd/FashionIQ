@@ -1,17 +1,51 @@
 "use client";
 
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowLeft, Eye, EyeOff, Sparkles } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, Eye, EyeOff, Sparkles, Loader2 } from "lucide-react";
+import { loginUserApi } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="auth-page">
+          <div className="auth-card text-center">Loading sign in...</div>
+        </main>
+      }
+    >
+      <LoginContent />
+    </Suspense>
+  );
+}
+
+function LoginContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { login, isAuthenticated } = useAuth();
+
+  const redirectUrl = searchParams.get("redirect") || "/";
+  const justRegistered = searchParams.get("registered") === "true";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [success, setSuccess] = useState(
+    justRegistered ? "Account created successfully! Please sign in." : ""
+  );
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  // If already logged in, redirect
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace(redirectUrl);
+    }
+  }, [isAuthenticated, redirectUrl, router]);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setSuccess("");
@@ -26,12 +60,30 @@ export default function LoginPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setError("Your password must contain at least 8 characters.");
-      return;
-    }
+    try {
+      setLoading(true);
 
-    setSuccess("Login form validated! Backend authentication is coming soon.");
+      const res = await loginUserApi({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (!res.success || !res.token) {
+        throw new Error(res.message || "Invalid credentials");
+      }
+
+      setSuccess("Welcome back! Signing you in...");
+      await login(res.token, res.user);
+
+      router.push(redirectUrl);
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(
+        err.message || "Invalid email or password. Please check your credentials."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -61,13 +113,18 @@ export default function LoginPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
+            disabled={loading}
+            required
           />
 
-          <div className="password-label">
+          <div className="password-label flex items-center justify-between">
             <label htmlFor="password">Password</label>
-            <a href="#" onClick={(event) => event.preventDefault()}>
+            <Link
+              href="/forgot-password"
+              className="text-xs text-[#c65b3b] hover:underline"
+            >
               Forgot password?
-            </a>
+            </Link>
           </div>
 
           <div className="password-input">
@@ -78,11 +135,14 @@ export default function LoginPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="current-password"
+              disabled={loading}
+              required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "Hide password" : "Show password"}
+              disabled={loading}
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -91,13 +151,32 @@ export default function LoginPage() {
           {error && <p className="auth-message error">{error}</p>}
           {success && <p className="auth-message success">{success}</p>}
 
-          <button type="submit" className="button button-dark auth-submit">
-            Sign in
+          <button
+            type="submit"
+            className="button button-dark auth-submit"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 size={16} className="animate-spin" /> Signing in...
+              </span>
+            ) : (
+              "Sign in"
+            )}
           </button>
         </form>
 
         <p className="auth-switch">
-          New to FashionIQ? <Link href="/register">Create an account</Link>
+          New to FashionIQ?{" "}
+          <Link
+            href={
+              redirectUrl !== "/"
+                ? `/register?redirect=${encodeURIComponent(redirectUrl)}`
+                : "/register"
+            }
+          >
+            Create an account
+          </Link>
         </p>
 
         <p className="auth-terms">

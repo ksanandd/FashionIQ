@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getWishlist, toggleWishlist } from "@/lib/wishlist";
+import { trackInteraction } from "@/lib/interactions";
 
 type WishlistButtonProps = {
   productId: string;
@@ -27,7 +28,11 @@ export default function WishlistButton({ productId }: WishlistButtonProps) {
   function handleClick(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
-    setIsSaved(toggleWishlist(productId));
+    const nowSaved = toggleWishlist(productId);
+    setIsSaved(nowSaved);
+    if (nowSaved) {
+      trackInteraction(productId, "LIKE");
+    }
   }
 
   return (
@@ -35,7 +40,9 @@ export default function WishlistButton({ productId }: WishlistButtonProps) {
       onClick={handleClick}
       aria-label={isSaved ? "Remove from wishlist" : "Add to wishlist"}
       aria-pressed={isSaved}
-      className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl shadow transition hover:scale-105"
+      className={`flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl shadow transition hover:scale-105 ${
+        isSaved ? "text-[#c65b3b]" : "text-gray-700 hover:text-black"
+      }`}
     >
       {isSaved ? "♥" : "♡"}
     </button>

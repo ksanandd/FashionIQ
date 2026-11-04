@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -12,11 +11,44 @@ const userRoutes = require("./routes/userRoutes");
 const wardrobeRoutes = require("./routes/wardrobeRoutes");
 const interactionRoutes = require("./routes/interactionRoutes");
 const recommendationRoutes = require("./routes/recommendationRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const outfitRoutes = require("./routes/outfitRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
-app.use(cors());
+const isProduction = process.env.NODE_ENV === "production";
+
+let corsOptions;
+if (isProduction) {
+    if (!process.env.CORS_ORIGIN || !process.env.CORS_ORIGIN.trim()) {
+        throw new Error("CRITICAL SECURITY CONFIGURATION ERROR: CORS_ORIGIN must be explicitly configured in production.");
+    }
+    const allowedOrigins = process.env.CORS_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean);
+    corsOptions = {
+        origin: (origin, callback) => {
+            if (!origin || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            } else {
+                callback(new Error(`CORS policy violation: Origin '${origin}' is not permitted.`));
+            }
+        },
+        credentials: true,
+    };
+} else {
+    // Development mode: allow localhost and explicitly configured origins
+    const devOrigins = process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean)
+        : ["http://localhost:3000", "http://127.0.0.1:3000"];
+    corsOptions = {
+        origin: devOrigins,
+        credentials: true,
+    };
+}
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
 app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/brands", brandRoutes);
@@ -25,6 +57,9 @@ app.use("/api/users", userRoutes);
 app.use("/api/wardrobes", wardrobeRoutes);
 app.use("/api/interactions", interactionRoutes);
 app.use("/api/recommendations", recommendationRoutes);
+app.use("/api/orders", orderRoutes);
+app.use("/api/outfits", outfitRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Basic health check
 app.get("/", (req, res) => {
@@ -57,6 +92,10 @@ app.get("/api/db-test", async (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-    console.log(`FashionIQ API running on port ${PORT}`);
-});
+if (require.main === module) {
+    app.listen(PORT, () => {
+        console.log(`FashionIQ API running on port ${PORT}`);
+    });
+}
+
+module.exports = app;

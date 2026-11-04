@@ -1,25 +1,33 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { ArrowLeft, Eye, EyeOff, Sparkles } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Sparkles, Loader2 } from "lucide-react";
+import { registerUserApi, loginUserApi } from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
 
 export default function RegisterPage() {
-  const [name, setName] = useState("");
+  const router = useRouter();
+  const { login } = useAuth();
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setSuccess("");
 
-    if (!name.trim() || !email.trim() || !password || !confirmPassword) {
-      setError("Please complete all fields.");
+    if (!firstName.trim() || !lastName.trim() || !email.trim() || !password || !confirmPassword) {
+      setError("Please complete all required fields.");
       return;
     }
 
@@ -38,7 +46,45 @@ export default function RegisterPage() {
       return;
     }
 
-    setSuccess("Registration form validated! Backend integration is coming soon.");
+    try {
+      setLoading(true);
+
+      const regRes = await registerUserApi({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (!regRes.success) {
+        throw new Error(regRes.message || "Registration failed");
+      }
+
+      setSuccess("Account created successfully! Logging you in...");
+
+      // Automatically sign in the newly registered user
+      try {
+        const loginRes = await loginUserApi({
+          email: email.trim().toLowerCase(),
+          password,
+        });
+
+        if (loginRes.success && loginRes.token) {
+          await login(loginRes.token, loginRes.user);
+          router.push("/");
+          return;
+        }
+      } catch {
+        // If auto-login fails, redirect to login page with success indication
+        router.push("/login?registered=true");
+        return;
+      }
+    } catch (err: any) {
+      console.error("Registration error:", err);
+      setError(err.message || "Unable to register. Please check your details and try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -60,15 +106,34 @@ export default function RegisterPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="auth-form">
-          <label htmlFor="name">Full name</label>
-          <input
-            id="name"
-            type="text"
-            placeholder="Your name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            autoComplete="name"
-          />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label htmlFor="firstName">First name</label>
+              <input
+                id="firstName"
+                type="text"
+                placeholder="First name"
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
+                autoComplete="given-name"
+                disabled={loading}
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="lastName">Last name</label>
+              <input
+                id="lastName"
+                type="text"
+                placeholder="Last name"
+                value={lastName}
+                onChange={(event) => setLastName(event.target.value)}
+                autoComplete="family-name"
+                disabled={loading}
+                required
+              />
+            </div>
+          </div>
 
           <label htmlFor="email">Email address</label>
           <input
@@ -78,6 +143,8 @@ export default function RegisterPage() {
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             autoComplete="email"
+            disabled={loading}
+            required
           />
 
           <label htmlFor="password">Password</label>
@@ -89,11 +156,14 @@ export default function RegisterPage() {
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               autoComplete="new-password"
+              disabled={loading}
+              required
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "Hide password" : "Show password"}
+              disabled={loading}
             >
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
@@ -107,13 +177,25 @@ export default function RegisterPage() {
             value={confirmPassword}
             onChange={(event) => setConfirmPassword(event.target.value)}
             autoComplete="new-password"
+            disabled={loading}
+            required
           />
 
           {error && <p className="auth-message error">{error}</p>}
           {success && <p className="auth-message success">{success}</p>}
 
-          <button type="submit" className="button button-dark auth-submit">
-            Create account
+          <button
+            type="submit"
+            className="button button-dark auth-submit"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 size={16} className="animate-spin" /> Creating account...
+              </span>
+            ) : (
+              "Create account"
+            )}
           </button>
         </form>
 

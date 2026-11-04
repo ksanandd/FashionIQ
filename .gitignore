@@ -8,6 +8,13 @@ __pycache__/
 venv/
 .venv/
 
+# AI Service & ChromaDB Persistence & Model Files
+ai-service/data/
+ai-service/data/chroma_db/
+ai-service/.env
+*.bin
+*.sqlite3
+
 # Build files
 dist/
 build/
@@ -22,7 +29,13 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
 # Local environment and dependencies
+.env
+.env.local
+*.env.local
 backend/.env
 backend/node_modules/
 frontend/node_modules/
+
+database/FashionIQ_Full_Database_pre_phase4_backup.sql

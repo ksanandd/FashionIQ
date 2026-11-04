@@ -1,83 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import CartIcon from "@/components/CartIcon";
-import { useState } from "react";
+import Navbar from "@/components/Navbar";
+import WishlistButton from "@/components/WishlistButton";
+import { useEffect, useState, useMemo } from "react";
+import { useAuth } from "@/context/AuthContext";
 import {
   ArrowDown,
   ArrowRight,
-  Heart,
-  Menu,
   Search,
-  ShoppingBag,
   Sparkles,
-  UserRound,
-  X,
 } from "lucide-react";
+import {
+  getProducts,
+  getCategories,
+  getUserRecommendationsApi,
+  type Product,
+  type ApiCategory,
+  type RecommendationProduct,
+} from "@/lib/api";
 
-const categories = [
-  {
-    name: "Women's Wear",
-    count: "Explore collection",
-    image:
-      "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=85",
-  },
-  {
-    name: "Men's Wear",
-    count: "Explore collection",
-    image:
-      "https://images.unsplash.com/photo-1516257984-b1b4d707412e?auto=format&fit=crop&w=800&q=85",
-  },
-  {
-    name: "Accessories",
-    count: "Explore collection",
-    image:
-      "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=85",
-  },
-];
-
-const products = [
-  {
-    id: 1,
-    name: "Relaxed Linen Shirt",
-    brand: "MANGO",
-    price: 2499,
-    category: "Men",
-    image:
-      "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=700&q=85",
-    badge: "Bestseller",
-  },
-  {
-    id: 2,
-    name: "Everyday Denim Jacket",
-    brand: "LEVI'S",
-    price: 3999,
-    category: "Women",
-    image:
-      "https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=700&q=85",
-    badge: "Trending",
-  },
-  {
-    id: 3,
-    name: "Classic White Sneakers",
-    brand: "PUMA",
-    price: 3299,
-    category: "Unisex",
-    image:
-      "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=700&q=85",
-    badge: "New arrival",
-  },
-  {
-    id: 4,
-    name: "Minimal Everyday Tote",
-    brand: "ZARA",
-    price: 1899,
-    category: "Accessories",
-    image:
-      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=700&q=85",
-    badge: "",
-  },
-];
+const CATEGORY_IMAGES: Record<string, string> = {
+  Tops: "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?auto=format&fit=crop&w=800&q=85",
+  Bottoms: "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=800&q=85",
+  Outerwear: "https://images.unsplash.com/photo-1543076447-215ad9ba6923?auto=format&fit=crop&w=800&q=85",
+  Footwear: "https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=800&q=85",
+  Accessories: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=85",
+  Clothing: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=800&q=85",
+};
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("en-IN", {
@@ -88,23 +38,75 @@ function formatPrice(price: number) {
 }
 
 export default function Home() {
+  const { token, isAuthenticated } = useAuth();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
+  const [recommendedProducts, setRecommendedProducts] = useState<RecommendationProduct[]>([]);
+  const [recommendedLoading, setRecommendedLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [favorites, setFavorites] = useState<number[]>([]);
-  const [menuOpen, setMenuOpen] = useState(false);
 
-  const filteredProducts = products.filter((product) =>
-    `${product.name} ${product.brand} ${product.category}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
-  );
+  useEffect(() => {
+    async function loadInitialData() {
+      try {
+        setLoading(true);
+        const [productsData, categoriesData] = await Promise.all([
+          getProducts(),
+          getCategories(),
+        ]);
+        setProducts(productsData);
 
-  function toggleFavorite(id: number) {
-    setFavorites((current) =>
-      current.includes(id)
-        ? current.filter((favorite) => favorite !== id)
-        : [...current, id],
+        // Deduplicate categories by category_name
+        const seen = new Set<string>();
+        const uniqueCategories = categoriesData.filter((cat) => {
+          if (seen.has(cat.category_name)) return false;
+          seen.add(cat.category_name);
+          return true;
+        });
+        setCategories(uniqueCategories);
+      } catch (err) {
+        console.error("Failed to load homepage data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+    setRecommendedLoading(true);
+
+    getUserRecommendationsApi(token, 4)
+      .then((data) => {
+        if (isMounted) {
+          setRecommendedProducts(data);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load recommendations:", err);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setRecommendedLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [token]);
+
+  const filteredProducts = useMemo(() => {
+    if (!search.trim()) return products;
+    const term = search.toLowerCase();
+    return products.filter((product) =>
+      `${product.name} ${product.brand} ${product.category} ${product.description}`
+        .toLowerCase()
+        .includes(term)
     );
-  }
+  }, [products, search]);
 
   return (
     <main>
@@ -112,58 +114,7 @@ export default function Home() {
         Discover your style. Find your fit. Welcome to FashionIQ.
       </div>
 
-      <header className="navbar">
-        <a href="#" className="logo" aria-label="FashionIQ home">
-          fashion<span>IQ</span>
-          <Sparkles size={15} className="logo-sparkle" />
-        </a>
-
-        <nav className={`nav-links ${menuOpen ? "nav-open" : ""}`}>
-          <a href="#categories" onClick={() => setMenuOpen(false)}>
-            Discover
-          </a>
-          <a href="#trending" onClick={() => setMenuOpen(false)}>
-            Trending
-          </a>
-          <a href="#about" onClick={() => setMenuOpen(false)}>
-            Our story
-          </a>
-	<Link
-  href="/wishlist"
-  className="text-sm text-gray-700 hover:text-black"
->
-  Wishlist
-</Link>
-
-<CartIcon />
-        </nav>
-
-        <div className="nav-actions">
-          <a href="#trending" aria-label="Search products">
-            <Search size={20} />
-          </a>
-          <a href="#trending" aria-label="Your wishlist">
-            <Heart size={20} />
-            {favorites.length > 0 && (
-              <span className="nav-count">{favorites.length}</span>
-            )}
-          </a>
-          <a href="#trending" aria-label="Shopping bag">
-            <ShoppingBag size={20} />
-          </a>
-          <a href="/login" aria-label="Your account">
-            <UserRound size={20} />
-          </a>
-        </div>
-
-        <button
-          className="mobile-menu"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label={menuOpen ? "Close menu" : "Open menu"}
-        >
-          {menuOpen ? <X size={23} /> : <Menu size={23} />}
-        </button>
-      </header>
+      <Navbar currentPath="/" />
 
       <section className="hero">
         <div className="hero-content">
@@ -179,9 +130,14 @@ export default function Home() {
             Discover pieces that match your personality.
             Your next favorite outfit is just a little inspiration away.
           </p>
-          <a href="#trending" className="button button-dark">
-            Explore collection <ArrowRight size={17} />
-          </a>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/products" className="button button-dark">
+              Explore collection <ArrowRight size={17} />
+            </Link>
+            <Link href="/outfits" className="button button-outline flex items-center gap-2">
+              <Sparkles size={16} /> Outfit Studio
+            </Link>
+          </div>
 
           <div className="hero-note">
             <span className="hero-note-line" />
@@ -208,34 +164,102 @@ export default function Home() {
             <span className="eyebrow">FIND YOUR VIBE</span>
             <h2>Explore by category</h2>
           </div>
-          <a href="#trending" className="text-link">
+          <Link href="/products" className="text-link">
             View all <ArrowRight size={16} />
-          </a>
+          </Link>
         </div>
 
         <div className="category-grid">
-          {categories.map((category, index) => (
-            <a
-              href="#trending"
-              className="category-card"
-              key={category.name}
-            >
-              <div
-                className="category-image"
-                style={{ backgroundImage: `url("${category.image}")` }}
-              />
-              <div className="category-info">
-                <span>0{index + 1}</span>
-                <div>
-                  <h3>{category.name}</h3>
-                  <p>{category.count}</p>
+          {categories.slice(0, 4).map((category, index) => {
+            const bgImage =
+              CATEGORY_IMAGES[category.category_name] ||
+              CATEGORY_IMAGES.Clothing;
+
+            return (
+              <Link
+                href={`/products?category_id=${category.category_id}`}
+                className="category-card"
+                key={category.category_id}
+              >
+                <div
+                  className="category-image"
+                  style={{ backgroundImage: `url("${bgImage}")` }}
+                />
+                <div className="category-info">
+                  <span>0{index + 1}</span>
+                  <div>
+                    <h3>{category.category_name}</h3>
+                    <p>{category.description || "Explore collection"}</p>
+                  </div>
+                  <ArrowRight size={20} />
                 </div>
-                <ArrowRight size={20} />
-              </div>
-            </a>
-          ))}
+              </Link>
+            );
+          })}
         </div>
       </section>
+
+      {/* AI Recommendations Section */}
+      {(recommendedProducts.length > 0 || recommendedLoading) && (
+        <section className="recommendations section" id="recommendations">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow flex items-center gap-1.5 text-[#c65b3b]">
+                <Sparkles size={14} /> CURATED BY AI
+              </span>
+              <h2>Recommended For You</h2>
+              <p className="section-description">
+                {isAuthenticated
+                  ? "Tailored to your style profile, recent interactions, and preferences."
+                  : "Curated selections powered by AI embeddings and fashion intelligence."}
+              </p>
+            </div>
+            <Link href="/products" className="text-link">
+              Explore all <ArrowRight size={16} />
+            </Link>
+          </div>
+
+          {recommendedLoading ? (
+            <div className="py-12 text-center">
+              <div className="mx-auto h-7 w-7 animate-spin rounded-full border-2 border-black border-t-transparent" />
+              <p className="mt-3 text-xs text-gray-500">
+                Generating personalized recommendations...
+              </p>
+            </div>
+          ) : (
+            <div className="product-grid">
+              {recommendedProducts.map((product) => (
+                <article className="product-card" key={product.product_id}>
+                  <div
+                    className="product-image"
+                    style={{ backgroundImage: `url("${product.image_url}")` }}
+                  >
+                    <span className="product-badge bg-black/80 backdrop-blur-xs text-white border-0 text-[10px] flex items-center gap-1">
+                      <Sparkles size={11} className="text-amber-400" />
+                      {product.reason || "AI Match"}
+                    </span>
+                    <div className="absolute right-3 top-3">
+                      <WishlistButton productId={String(product.product_id)} />
+                    </div>
+                  </div>
+
+                  <Link href={`/products/${product.product_id}`} className="block">
+                    <div className="product-info">
+                      <span className="product-brand">
+                        {product.brand_name || "FashionIQ"}
+                      </span>
+                      <h3>{product.product_name}</h3>
+                      <span className="product-price">
+                        {formatPrice(Number(product.price))}
+                      </span>
+                    </div>
+                  </Link>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="trending section" id="trending">
         <div className="section-heading">
@@ -258,55 +282,51 @@ export default function Home() {
           </label>
         </div>
 
-        <div className="product-grid">
-          {filteredProducts.map((product) => (
-            <article className="product-card" key={product.id}>
-              <div
-                className="product-image"
-                style={{ backgroundImage: `url("${product.image}")` }}
-              >
-                {product.badge && (
-                  <span className="product-badge">{product.badge}</span>
-                )}
-                <button
-                  className={`favorite-button ${
-                    favorites.includes(product.id) ? "is-favorite" : ""
-                  }`}
-                  onClick={() => toggleFavorite(product.id)}
-                  aria-label={
-                    favorites.includes(product.id)
-                      ? "Remove from wishlist"
-                      : "Add to wishlist"
-                  }
+        {loading ? (
+          <div className="py-16 text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-black border-t-transparent" />
+            <p className="mt-4 text-sm text-gray-500">Loading catalog pieces...</p>
+          </div>
+        ) : (
+          <div className="product-grid">
+            {filteredProducts.map((product) => (
+              <article className="product-card" key={product.id}>
+                <div
+                  className="product-image"
+                  style={{ backgroundImage: `url("${product.image}")` }}
                 >
-                  <Heart
-                    size={19}
-                    fill={favorites.includes(product.id) ? "currentColor" : "none"}
-                  />
-                </button>
-              </div>
+                  {product.badge && (
+                    <span className="product-badge">{product.badge}</span>
+                  )}
+                  <div className="absolute right-3 top-3">
+                    <WishlistButton productId={product.id} />
+                  </div>
+                </div>
 
-              <div className="product-info">
-                <span className="product-brand">{product.brand}</span>
-                <h3>{product.name}</h3>
-                <span className="product-price">
-                  {formatPrice(product.price)}
-                </span>
-              </div>
-            </article>
-          ))}
-        </div>
+                <Link href={`/products/${product.id}`} className="block">
+                  <div className="product-info">
+                    <span className="product-brand">{product.brand}</span>
+                    <h3>{product.name}</h3>
+                    <span className="product-price">
+                      {formatPrice(product.price)}
+                    </span>
+                  </div>
+                </Link>
+              </article>
+            ))}
+          </div>
+        )}
 
-        {filteredProducts.length === 0 && (
+        {!loading && filteredProducts.length === 0 && (
           <p className="empty-state">
             No products found. Try a different search.
           </p>
         )}
 
         <div className="center-action">
-          <a href="#categories" className="button button-outline">
+          <Link href="/products" className="button button-outline">
             Discover more <ArrowRight size={17} />
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -324,16 +344,16 @@ export default function Home() {
           We're bringing intelligent recommendations and personal style
           together to make finding what you love feel effortless.
         </p>
-        <a href="#trending" className="button button-dark">
+        <Link href="/products" className="button button-dark">
           Find your style <ArrowRight size={17} />
-        </a>
+        </Link>
       </section>
 
       <footer className="footer">
-        <a href="#" className="logo">
+        <Link href="/" className="logo">
           fashion<span>IQ</span>
           <Sparkles size={14} className="logo-sparkle" />
-        </a>
+        </Link>
         <p>Style, discovered differently.</p>
         <span>© 2026 FashionIQ. All rights reserved.</span>
       </footer>

@@ -1,4 +1,3 @@
-
 const db = require("../config/db");
 
 // Record a product interaction
@@ -14,12 +13,12 @@ const recordInteraction = async (req, res) => {
             });
         }
 
-        const allowedTypes = ["VIEW", "LIKE", "DISLIKE", "ADD_TO_CART"];
+        const allowedTypes = ["VIEW", "LIKE", "DISLIKE", "ADD_TO_CART", "PURCHASE"];
 
         if (!allowedTypes.includes(interaction_type)) {
             return res.status(400).json({
                 success: false,
-                message: "Invalid interaction type"
+                message: "Invalid interaction type. Must be one of: VIEW, LIKE, DISLIKE, ADD_TO_CART, PURCHASE"
             });
         }
 
