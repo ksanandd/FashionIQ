@@ -18,6 +18,22 @@ const adminRoutes = require("./routes/adminRoutes");
 const app = express();
 
 const isProduction = process.env.NODE_ENV === "production";
+const DEV_FALLBACK_JWT_SECRET = "FashionIQ_YourOwnLongRandomSecret_2026";
+
+// Security Configuration Guard: JWT Secret enforcement
+if (isProduction) {
+    if (!process.env.JWT_SECRET || !process.env.JWT_SECRET.trim() || process.env.JWT_SECRET === DEV_FALLBACK_JWT_SECRET) {
+        throw new Error("CRITICAL SECURITY CONFIGURATION ERROR: A secure, non-default JWT_SECRET must be explicitly configured in production (minimum 32 characters).");
+    }
+    if (process.env.JWT_SECRET.length < 32) {
+        throw new Error("CRITICAL SECURITY CONFIGURATION ERROR: JWT_SECRET must be at least 32 characters long in production.");
+    }
+} else {
+    // Safe development / test fallback for seamless local test execution
+    if (!process.env.JWT_SECRET) {
+        process.env.JWT_SECRET = DEV_FALLBACK_JWT_SECRET;
+    }
+}
 
 let corsOptions;
 if (isProduction) {

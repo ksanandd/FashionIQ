@@ -4,7 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node tests/run_all_qa_tests.js",
+    "test:qa": "node tests/run_all_qa_tests.js",
+    "test:qa:auth": "node tests/test_auth_qa.js",
+    "test:qa:wardrobe": "node tests/test_wardrobe_qa.js",
+    "test:qa:outfits": "node tests/test_outfit_qa.js",
+    "test:qa:orders": "node tests/test_order_qa.js",
+    "test:qa:catalog": "node tests/test_recommendations_catalog_qa.js",
     "start": "node server.js",
     "dev": "nodemon server.js"
   },
